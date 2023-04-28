@@ -80,7 +80,7 @@ def recorridotext(source,event): #_CODE_:recorridot:915628:
 def valvulabutton(source,event):  #_CODE_:valvulab:397701:
     if (bomba):
       if(not valvula):
-        digitalWrite(pin2,HIGH)
+        digitalWrite(pin2,HIGH)╔╔x╔╔
         valvula=!valvula
         valvulab.setLocalColorScheme(GCScheme.GREEN_SCHEME)  
       else:

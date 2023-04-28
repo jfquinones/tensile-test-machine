@@ -1,23 +1,21 @@
 import csv
 import logging
 from datetime import datetime
-from serial import Serial,tools
-
-
-listPorts = tools.list_ports.comports()
+from serial import Serial
 
 Mensajes=0 #GWindow  
 label20,label21 = 0,0 #GLabel 
 
 class Arduino():
-  myport= Serial("/dev/ttyUSB0",57600,timeout=1)
+  arduinoPort= Serial()
   
   """
   * Internal class used by the Arduino class to parse the Firmata protocol.
   """
 
   """
-  * Constant to set a pin to input mode (in a call to pinMode()).
+  * Constant to set a 
+   to input mode (in a call to pinMode()).
   """
   INPUT = 0 
   """
@@ -145,19 +143,23 @@ class Arduino():
 
   
   def __init__(self,
-      VIR:int,
-      VIF:int,
-      Debug:bool,
-      port_baudrate:int|None = 57000,
-      port_name:str|None = "/dev/ttyUSB0",
-      port_timeout: int|None = 1):
+      VIR:int=3470,
+      VIF:int=2200,
+      Debug:bool=False,
+      port_baudrate:int = 57000,
+      port_name:str|None = "COM4", #Select the corresponding Arduino Port
+      port_timeout: int = 1):
     self.VIR = VIR
     self.VIF = VIF
     self.DEBUG = Debug
-    self.myport.baudrate = port_baudrate
-    self.myport.timeout = port_timeout
-    self.myport.port = port_name
-    self.myport.write(0xFF)
+    print(port_baudrate)
+    self.arduinoPort.baudrate = port_baudrate
+    self.arduinoPort.timeout = port_timeout
+    self.arduinoPort.port = port_name
+
+    if not self.arduinoPort.is_open:self.arduinoPort.open()
+    self.arduinoPort.write(0xFF)
+    
     
 
 
@@ -168,37 +170,48 @@ class Arduino():
   def analogRead(self,pin): 
       return self.analogInputData[pin] 
     
+  def writeSYSEX(self,command,data:list):
+    array=[self.START_SYSEX,command]
+    #self.arduinoPort.write(chr(self.START_SYSEX).encode('utf-8'))
+    #self.arduinoPort.write(chr(command).encode())
+    array+=data
+    array+=[self.END_SYSEX]
+    self.arduinoPort.write(bytearray(array))
+    #for d in data:
+      #self.arduinoPort.write(chr(d).encode())
+      #self.arduinoPort.write(chr(self.END_SYSEX).encode())
+
+    
 
   def pinMode(self,pin,mode):
-      self.myport.write(self.START_SYSEX) 
-      self.myport.write(self.PINMODO) 
-      self.myport.write(pin) 
-      self.myport.write(mode) 
-      self.myport.write(self.END_SYSEX) 
+      self.writeSYSEX(self.PINMODO,data=[pin,mode])
+      """ self.arduinoPort.write(self.START_SYSEX) 
+      self.arduinoPort.write(self.PINMODO) 
+      self.arduinoPort.write(pin) 
+      self.arduinoPort.write(mode) 
+      self.arduinoPort.write(self.END_SYSEX)  """
 
   def digitalWrite(self,pin, value):
       #if (value == 0)  value=0 
       #else  value=1 
-        
-      self.myport.write(self.START_SYSEX) 
-      self.myport.write(self.ESCRITURADIGITAL) 
-      self.myport.write(pin) 
-      self.myport.write(value) 
-      self.myport.write(self.END_SYSEX) 
-    
+      self.writeSYSEX(self.ESCRITURADIGITAL,data=[pin,value])  
+      """ self.arduinoPort.write(self.START_SYSEX) 
+      self.arduinoPort.write(self.ESCRITURADIGITAL) 
+      self.arduinoPort.write(pin) 
+      self.arduinoPort.write(value) 
+      self.arduinoPort.write(self.END_SYSEX) """
+
 
   def analogWrite(self,pin, value):
-      self.myport.write(self.START_SYSEX)     
-      self.myport.write(self.ESCRITURAANALOGICA) 
-      self.myport.write(pin) 
-      self.myport.write(value & 0x7F) 
-      self.myport.write(value >> 7) 
-      self.myport.write(self.END_SYSEX) 
+      self.writeSYSEX(self.ESCRITURAANALOGICA,data=[pin,value & 0x7F,value >> 7])
+      """ self.arduinoPort.write(self.START_SYSEX)     
+      self.arduinoPort.write(self.ESCRITURAANALOGICA) 
+      self.arduinoPort.write(pin) 
+      self.arduinoPort.write(value & 0x7F) 
+      self.arduinoPort.write(value >> 7) 
+      self.arduinoPort.write(self.END_SYSEX)  """
 
   def processInput(self,inputData): 
-      command 
-
-  #    System.out.print(">" + inputData + " ") 
 
       if (parsingSysex):
         if (inputData == self.END_SYSEX):
@@ -214,32 +227,32 @@ class Arduino():
           else: 
             self.storedInputData[sysexBytesRead] = inputData 
             sysexBytesRead+=1
-      else:
-        if(inputData < 0xF0):
-          command = inputData & 0xF0 
-          multiByteChannel = inputData & 0x0F 
         else:
-          command = inputData 
-          # commands in the 0xF* range don't use channel data
-        
-        if command == self.DIGITAL_MESSAGE: pass     
-        if command == self.ANALOG_MESSAGE:
-        
-          while (self.myport.available() > 0):
-            inBuffer = self.myport.readBytesUntil(129) 
-            self.analogInputData[multiByteChannel]=(inBuffer[0]+inBuffer[1]<<7) 
+          if(inputData < 0xF0):
+            command = inputData & 0xF0 
+            multiByteChannel = inputData & 0x0F 
+          else:
+            command = inputData 
+            # commands in the 0xF* range don't use channel data
           
-        if command == self.START_SYSEX:
-          parsingSysex = True 
-          sysexBytesRead = 0
+          if command == self.DIGITAL_MESSAGE: pass     
+          if command == self.ANALOG_MESSAGE:
+          
+            while (self.arduinoPort.in_waiting > 0):
+              inBuffer = self.arduinoPort.read_until(size=2)#readBytesUntil(129) 
+              self.analogInputData[multiByteChannel]=(inBuffer[0]+inBuffer[1]<<7) 
+            
+          if command == self.START_SYSEX:
+            parsingSysex = True 
+            sysexBytesRead = 0
         
     
   def adsConfig(self,modo,ganancia):
-    self.myport.write(self.START_SYSEX) 
-    self.myport.write(self.ADS1115) 
-    self.myport.write(modo) 
-    self.myport.write(ganancia) 
-    self.myport.write(self.END_SYSEX) 
+    self.arduinoPort.write(self.START_SYSEX) 
+    self.arduinoPort.write(self.ADS1115) 
+    self.arduinoPort.write(modo) 
+    self.arduinoPort.write(ganancia) 
+    self.arduinoPort.write(self.END_SYSEX) 
 
   def adsSingleMode(self,inputdata:list):
     sensor1=(inputdata[1]+inputdata[2]<<7+inputdata[3]<<14) 
@@ -258,7 +271,8 @@ class Arduino():
   def setlectdigital(self,values:list):
     self.digitalInputData[values[0]]=values[1] 
 
-
+  def writeBytes(self,data):
+    pass
 """ def Mensaje(a:str,b:str):
   Mensajes = GWindow.getWindow(this, "Advertencia", 500, 500, 400, 200, JAVA2D) 
   Mensajes.noLoop() 
@@ -307,7 +321,7 @@ def guardarArchivo(a:list,b:list,c:list,d:list):
   now=datetime.now()
   date="-".join([now.year,now.month,now.day])
   time=":".join([now.hour,now.minute,now.second])
-  description=descripcion.getText()
+  description=""#descripcion.getText()
   csv_writer=csv.writer('home/pi/Document/Ensayos/' + date + ' ' + time + ' - '+ description + '.csv')
   csv_writer.writerows()
   

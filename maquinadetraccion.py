@@ -2,16 +2,22 @@
 #import org.firmata.*
 #Firmata firmata
 from funciones import Arduino, guardarArchivo
+#variables para almacenar el valor de los sensores medidos en arduino
+sensor1=0   #sensor1=alargamiento 
+sensor2=0   #sensor2=fuerza
+VV=45       #VV= valor de PWM para la valvula proporcional
+VIR=3470    #VIR=Valor Inicial de Recorrido
+VIF=2200    #VIF=Valor Inicial de Fuerza
 #inicializar una instancia de Arduino para comunicarse
-arduino=Arduino
+arduino=Arduino(VIR=3470,VIF=2200)
 
 #Variables para trazar el gráfico
 x1,x2,y1,y2 = 0,0,0,0 #coordenadas para trazar lineas en el gráfico
 ax,ay,divisionesx,divisionesy = 0,0,10,10 #diviones del gráfico
 nombreArchivo,ensayofiles = "","" #variables para almacenar los datos en un archivo
-pin1=4
-pin2=5
-pin3=6
+pin4=4 #Bomba
+pin5=5 #Valvula de paso
+pin6=6 #Valvular Proporcional
 Pmax,Rmax = 0,0
 #coordenadas del gráfico
 Xmin=450
@@ -25,12 +31,7 @@ LI=0.0 #LI=Longitud inicial de la probeta
 LP=0.0 #LP=longitud de la probeta al final de la precarga
 
 
-#variables para almacenar el valor de los sensores medidos en arduino
-sensor1=0   #sensor1=alargamiento 
-sensor2=0   #sensor2=fuerza
-VV=45       #VV= valor de PWM para la valvula proporcional
-VIR=3470    #VIR=Valor Inicial de Recorrido
-VIF=2200    #VIF=Valor Inicial de Fuerza
+
 
 bomba=False
 valvula=False
@@ -125,7 +126,7 @@ def draw():
       """if(((millis()-millisa)/1000)>5){
        VV--
        mill#isa=millis()
-       analogWrite(pin3,VV)
+       analogWrite(pin6,VV)
        proporcionalb.setValue(VV)
        println(VV,"unidades")
        
@@ -174,18 +175,18 @@ def draw():
     if dt>0 and relevo1 > comparacion:
         df=(fuerza-fuerzaant)/dt
         if(fuerza<150):
-          arduino.analogWrite(pin3,255)
+          arduino.analogWrite(pin6,255)
           guardarArchivo(valuesf,valuesa,valuese,valuesd)
           ensayo=~ensayo
         
         if(df<VF and VV>0 and ensayo==True):
           VV-=1
-          arduino.analogWrite(pin3,VV) 
+          arduino.analogWrite(pin6,VV) 
           comparacion+=1
         
         #if(ndf>VF and VV<50){
         #  VV++
-        #  analogWrite(pin3,VV)
+        #  analogWrite(pin6,VV)
         #}
         millisa=millis()
         fuerzaant=fuerza
@@ -217,7 +218,7 @@ def draw():
 
   if(PV):
     proporcionalb.setValue(50)
-    arduino.analogWrite(pin3,255)
+    arduino.analogWrite(pin6,255)
   
 
   NS=False
